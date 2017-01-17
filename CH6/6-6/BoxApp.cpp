@@ -16,6 +16,7 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
+
 struct Vertex
 {
     XMFLOAT3 Pos;
@@ -25,6 +26,7 @@ struct Vertex
 struct ObjectConstants
 {
     XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
+	float gTime = 0.0f;
 };
 
 class BoxApp : public D3DApp
@@ -166,9 +168,14 @@ void BoxApp::Update(const GameTimer& gt)
     XMMATRIX proj = XMLoadFloat4x4(&mProj);
     XMMATRIX worldViewProj = world*view*proj;
 
+	//6.6 Exercise
+	float gTime = gt.TotalTime();
+
 	// Update the constant buffer with the latest worldViewProj matrix.
 	ObjectConstants objConstants;
     XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+
+	objConstants.gTime = gTime;
     mObjectCB->CopyData(0, objConstants);
 }
 
@@ -290,6 +297,8 @@ void BoxApp::BuildDescriptorHeaps()
 
 void BoxApp::BuildConstantBuffers()
 {
+
+	//(ID3D12Device* device, UINT elementCount, bool isConstantBuffer)
 	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), 1, true);
 
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
