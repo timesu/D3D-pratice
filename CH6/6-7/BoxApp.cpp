@@ -50,8 +50,9 @@ private:
 	void BuildConstantBuffers();
     void BuildRootSignature();
     void BuildShadersAndInputLayout();
-    void BuildBoxGeometry();
-	void BuildPyramidGeometry();
+    //void BuildBoxGeometry();
+	//void BuildPyramidGeometry();
+	void BuildBoxAndPyramidGeometry();
     void BuildPSO();
 
 private:
@@ -125,7 +126,9 @@ bool BoxApp::Initialize()
 	BuildConstantBuffers();
     BuildRootSignature();
     BuildShadersAndInputLayout();
-    BuildBoxGeometry();
+	//BuildPyramidGeometry();
+    //BuildBoxGeometry();
+	BuildBoxAndPyramidGeometry();
     BuildPSO();
 
     // Execute the initialization commands.
@@ -212,6 +215,13 @@ void BoxApp::Draw(const GameTimer& gt)
 		mBoxGeo->DrawArgs["box"].IndexCount, 
 		1, 0, 0, 0);
 	
+
+	auto firstPyramidIndex = mBoxGeo->DrawArgs["pryamid"].StartIndexLocation;
+	auto firstPyramidVertexPos = mBoxGeo->DrawArgs["pyramid"].BaseVertexLocation;
+	mCommandList->DrawIndexedInstanced(
+		mBoxGeo->DrawArgs["pryamid"].IndexCount,
+		1, firstPyramidIndex, firstPyramidVertexPos, 0);
+
     // Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -362,10 +372,12 @@ void BoxApp::BuildShadersAndInputLayout()
     };
 }
 
-void BoxApp::BuildPyramidGeometry()
+void BoxApp::BuildBoxAndPyramidGeometry()
 {
-	std::array<Vertex, 8> vertices =
+	
+	std::array<Vertex, 13> vertices =
 	{
+		//Box
 		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
 		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
 		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
@@ -373,11 +385,18 @@ void BoxApp::BuildPyramidGeometry()
 		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
 		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
 		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) }),
+		//Pyramid
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
+		Vertex({ XMFLOAT3(+0.0f, +1.0f, +0.0f), XMFLOAT4(Colors::Black) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) })
 	};
 
-	std::array<std::uint16_t, 36> indices =
+	std::array<std::uint16_t, 54> indices =
 	{
+		//Box
 		// front face
 		0, 1, 2,
 		0, 2, 3,
@@ -400,9 +419,96 @@ void BoxApp::BuildPyramidGeometry()
 
 		// bottom face
 		4, 0, 3,
-		4, 3, 7
+		4, 3, 7,
+
+		//Pyramid
+		//front face
+		0, 1, 2,
+
+		//back face
+		3, 4, 1,
+
+		//left face
+		3, 1, 0,
+
+		//right face
+		4, 2, 1,
+
+		//bottom face
+		3, 0, 4,
+		4, 0, 2,
 	};
 
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	mBoxGeo = std::make_unique<MeshGeometry>();
+	mBoxGeo->Name = "boxGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &mBoxGeo->VertexBufferCPU));
+	CopyMemory(mBoxGeo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &mBoxGeo->IndexBufferCPU));
+	CopyMemory(mBoxGeo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	mBoxGeo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, mBoxGeo->VertexBufferUploader);
+
+	mBoxGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, mBoxGeo->IndexBufferUploader);
+
+	mBoxGeo->VertexByteStride = sizeof(Vertex);
+	mBoxGeo->VertexBufferByteSize = vbByteSize;
+	mBoxGeo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	mBoxGeo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry boxsubmesh;
+	boxsubmesh.IndexCount = 36;
+	boxsubmesh.StartIndexLocation = 0;
+	boxsubmesh.BaseVertexLocation = 0;
+
+	mBoxGeo->DrawArgs["box"] = boxsubmesh;
+
+	SubmeshGeometry pryamidsubmesh;
+	pryamidsubmesh.IndexCount = (UINT)indices.size() - boxsubmesh.IndexCount;
+	pryamidsubmesh.StartIndexLocation = 36;
+	pryamidsubmesh.BaseVertexLocation = 8;
+
+	mBoxGeo->DrawArgs["pryamid"] = pryamidsubmesh;
+}
+
+/*
+void BoxApp::BuildPyramidGeometry()
+{
+	std::array<Vertex, 5> vertices =
+	{
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
+		Vertex({ XMFLOAT3(+0.0f, +1.0f, +0.0f), XMFLOAT4(Colors::Black) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) })
+	};
+
+	std::array<std::uint16_t, 18> indices =
+	{
+		//front face
+		0, 1, 2,
+
+		//back face
+		3, 4, 1,
+
+		//left face
+		3, 1, 0,
+
+		//right face
+		4, 2, 1,
+
+		//bottom face
+		3, 0, 4,
+		4, 0, 2,
+	};
+
+	
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
@@ -433,7 +539,9 @@ void BoxApp::BuildPyramidGeometry()
 
 	mBoxGeo->DrawArgs["box"] = submesh;
 }
+*/
 
+/*
 void BoxApp::BuildBoxGeometry()
 {
     std::array<Vertex, 8> vertices =
@@ -505,6 +613,8 @@ void BoxApp::BuildBoxGeometry()
 
 	mBoxGeo->DrawArgs["box"] = submesh;
 }
+*/
+
 
 void BoxApp::BuildPSO()
 {
