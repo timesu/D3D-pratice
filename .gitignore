@@ -68,3 +68,11 @@ Temporary Items
 /CH6/6-6/6-6.VC.VC.opendb
 /CH6/6-7/6-7.vcxproj.filters
 /CH6/Box/Debug
+*.sln
+CH6/Box/Box.VC.VC.opendb
+*.db
+CH6/6-6/6-6.VC.db
+*.db
+*.cso
+CH6/6-6/6-6.VC.db
+*.db
