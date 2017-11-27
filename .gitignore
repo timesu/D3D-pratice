@@ -49,7 +49,7 @@ Temporary Items
 # Project files
 .suo
 .sln
-.db
+*.db
 .opendb
 .vcxproj
 .filters
@@ -67,3 +67,4 @@ Temporary Items
 /CH6/6-6/Debug
 /CH6/6-6/6-6.VC.VC.opendb
 /CH6/6-7/6-7.vcxproj.filters
+/CH6/Box/Debug
